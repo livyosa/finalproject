@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+
 ArrayList<Particle> particles;
 
 void setup() {
@@ -9,7 +11,7 @@ void setup() {
 }
 
 void draw() {
-  background(0, 20); // Slight transparency to create trailing effect
+  background(0, 10); // Slight transparency to create trailing effect
 
   // Generate particles randomly across the canvas
   if (frameCount % 5 == 0) {
@@ -30,8 +32,32 @@ void draw() {
 }
 
 void mouseDragged() {
-  // Add new particles where the mouse is dragged
-  particles.add(new Particle(mouseX, mouseY, false));
+  // Only add particles when left mouse button is pressed
+  if (mouseButton == LEFT) {
+    particles.add(new Particle(mouseX, mouseY, true));
+  }
+}
+
+void mousePressed() {
+  if (mouseButton == RIGHT) {
+    // Trigger vacuum effect when right mouse button is pressed
+    for (Particle p : particles) {
+      float dx = mouseX - p.x;
+      float dy = mouseY - p.y;
+      float distance = dist(mouseX, mouseY, p.x, p.y);
+
+      // Clamp distance to avoid division by zero
+      float clampedDistance = max(distance, 10);
+
+      // Stronger attraction for vacuum effect
+      float attractionMultiplier = pow(1 / clampedDistance, 1.5);
+      float attractionX = dx * attractionMultiplier * 10; // Increase strength
+      float attractionY = dy * attractionMultiplier * 10;
+
+      p.vx += attractionX;
+      p.vy += attractionY;
+    }
+  }
 }
 
 class Particle {
@@ -72,7 +98,7 @@ class Particle {
     lifespan = isPersistent ? Float.MAX_VALUE : 255;
 
     // Set attraction strength
-    attractionStrength = random(0.1, 0.5);
+    attractionStrength = random(0.5, 2.0); // Higher strength for stronger pull
 
     // Set persistence
     persistent = isPersistent;
@@ -80,23 +106,42 @@ class Particle {
 
   // Update particle
   void update() {
-    // Calculate direction to the mouse position
-    float angleToMouse = atan2(mouseY - y, mouseX - x);
+    // Calculate direction and distance to the mouse
+    float dx = mouseX - x;
+    float dy = mouseY - y;
+    float distance = dist(mouseX, mouseY, x, y);
 
-    // Move particles towards the mouse
-    float attractionX = cos(angleToMouse) * attractionStrength;
-    float attractionY = sin(angleToMouse) * attractionStrength;
+    // Clamp distance to avoid division by zero
+    float clampedDistance = max(distance, 10);
 
+    // Calculate attraction with inverse-square scaling
+    float attractionMultiplier = pow(1 / clampedDistance, 2);
+    float attractionX = dx * attractionMultiplier * attractionStrength;
+    float attractionY = dy * attractionMultiplier * attractionStrength;
+
+    // Add attraction to velocity
     vx += attractionX;
     vy += attractionY;
 
-    // Move the particle
+    // Dampen velocity
+    vx *= 0.95;
+    vy *= 0.95;
+
+    // Cap velocity
+    float maxSpeed = 10;
+    float speed = dist(0, 0, vx, vy);
+    if (speed > maxSpeed) {
+      vx = (vx / speed) * maxSpeed;
+      vy = (vy / speed) * maxSpeed;
+    }
+
+    // Update position
     x += vx;
     y += vy;
 
     // Reduce lifespan gradually for non-persistent particles
     if (!persistent) {
-      lifespan -= -5; // Decrease more gradually for smoother fade
+      lifespan -= 10;
     }
   }
 
@@ -114,7 +159,7 @@ class Particle {
 
   // Check if particle is dead
   boolean isDead() {
-    return lifespan < 0 || 
+    return lifespan < 10 || 
            x < 0 || x > width || 
            y < 0 || y > height;
   }
